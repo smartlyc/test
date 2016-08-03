@@ -21,7 +21,7 @@ import requests
 
 import logging
 
-import thread
+import threading
 
 from bs4 import BeautifulSoup
 
@@ -91,7 +91,7 @@ def download(url): #必须要注意中英文括号的不同（），(),会提示
     #单独测试时能够解决汉字问题，但是在此项目中无法解决问题
     #filename = urllib.quote(filename) #转换为unicode格式
 
-    target = '../pic/{}.jpg'.format(filename)
+    target = '../pic2/{}.jpg'.format(filename)
     #print 'target=',target
     #target = './{}.jpg'.format(filename)    图片存储路径设置
     chardet_target = chardet.detect(target)
@@ -111,15 +111,15 @@ def download(url): #必须要注意中英文括号的不同（），(),会提示
     return
 
 
-def mainmaster(threadName,delay):
+def mainmaster(url):
     # 主函数
     #  u'' 字符串在内存中编码格式为unicode  ,此处是否加 u 都可以
-    urls = [u'http://news.swjtu.edu.cn/ShowNews-{}-0-1.shtml'.format(number) for number in range(900,910 )]
+    #urls = [u'http://news.swjtu.edu.cn/ShowNews-{}-0-1.shtml'.format(number) for number in range(900,910 )]
     
     
-    for url in urls:
+    #for url in urls:
     
-        print threadName,url
+        print url,threading.currentThread().getName()
         debug_log(url)            
         
         request =urllib2.Request(url)
@@ -142,17 +142,30 @@ def mainmaster(threadName,delay):
             else:          #:标点符号非常非常容易忘记加，尤其是中间插入if else 语句时！！！ 
                src = 'http://news.swjtu.edu.cn'+src
     
-            print threadName,src
+            print src,threading.currentThread().getName()
             debug_log(src)        
             
             download(src) #使用函数之前需事先定义函数
 
 
-#  创建2个线程
+#  创建线程
 
-try:
-   thread.start_new_thread(mainmaster,('Thread-1',1))
-   thread.start_new_thread(mainmaster,('Thread-2',2))
-except:
-   print "Error: unable to start thread"       
-   
+threadpool = []
+
+urls = [u'http://news.swjtu.edu.cn/ShowNews-{}-0-1.shtml'.format(number) for number in range(9000,10000)]
+    
+for url in urls:
+    th=threading.Thread(target = mainmaster, args = (url,))
+    #mainmaster(url)
+    threadpool.append(th)
+
+for th in threadpool:
+	th.start()
+
+for th in threadpool:
+	threading.Thread.join(th)   
+
+'''
+缺陷：线程数不可控，print 输出内容格式存在混乱，尚未使用lock，日志保存格式为GB2312，想保存为UTF-8，还需要进一步改进
+每分钟200+图片下载速度，下载速度提升近10倍
+'''
