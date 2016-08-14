@@ -26,7 +26,6 @@ import time
 q = Queue.Queue()
 q_src = Queue.Queue()
 
-list_src = []
 
 num_worker_threads = 40
 
@@ -156,8 +155,13 @@ def do_work(url):
             #src = unicode(src,'utf8')   
     
             #print type(src).__name__
-            
-            list_src.append(src)    
+                        
+            '''在最开头命名无效，需在此处声明'''
+
+            global list_src 
+
+            list_src = src  
+            main_src()
     
 def src(src):
     
@@ -224,14 +228,14 @@ def worker_src():
         q_src.task_done()
     
 def main_src():    
-        
+    num_worker_threads = 1
     for i in range(num_worker_threads):
          t_src = threading.Thread(target=worker_src)
          t_src.daemon = True
          t_src.start()
            
-    for item in list_src:
-        q_src.put(item)
+    item = list_src
+    q_src.put(item)
     
     q_src.join()       # block until all tasks are done
     
@@ -239,15 +243,11 @@ def main_src():
 
 if __name__ == "__main__":
     a = time.time()
-    main()
-    b = time.time()    
-    main_src()
+    main()    
     c = time.time()
-    print b-a	
-    print c-b
     print c-a
  
-'''
+'''           2.0版本
                     五线程 24.6069998741
                     十线程 26.9849998951
                     15线程 22.2999999523
@@ -267,7 +267,8 @@ if __name__ == "__main__":
             
                     实验时网络不稳定，对速度影响很大 
                     仅仅对100个网页（8000，8100）进行实验
-                    
+              
+              2.5版本
                     先读取所有图片网址，再用多线程下载图片
                     缺陷：
                         非常非常慢，比单线程还要慢慢慢
@@ -276,11 +277,23 @@ if __name__ == "__main__":
                            c-b 58.1599998474
                            c-a 104.306999922
                     
+              3.0版本      
+                    多线程读取网页，再使用多线程下载网页中的图片（下载图片的线程数和图片数目一致，尚不能控制）
+                    40线程 29.3510000706 此时2.0版本40线程 34.111000061   （测试时间不同，网速不同，导致此处2.0版本40线程用时较多）
+
+                    
+                    
                     '''
             
-'''
+'''           2.0版本
                     缺陷：
                          每个线程下载的图片数量相差较大，网页多线程，也应使用多线程下载同一个网页的图片，进一步优化下载速度
                          日志保存格式为GB2312，想保存为UTF-8，还需要进一步改进
                          代理还未涉及
+             
+              3.0版本
+                    缺陷：
+                         下载图片的线程数和图片数目一致，尚不能控制
+                         
+                         
                     '''
