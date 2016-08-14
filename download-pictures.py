@@ -24,7 +24,11 @@ import Queue
 import time
 
 q = Queue.Queue()
+q_src = Queue.Queue()
 
+list_src = []
+
+num_worker_threads = 40
 
 
 #方法1.设置运行时的默认编码,可以解决图片.jpg，UnicodeEncodeError: 'ascii' codec can't encode characters in position 35-36: ordinal not in range(128)
@@ -38,6 +42,7 @@ q = Queue.Queue()
 #import sys
 #reload(sys)
 #sys.setdefaultencoding('utf-8')
+
 
 # 定义函数
 # 将所以 print 内容保存到 debug_log.txt
@@ -148,10 +153,21 @@ def do_work(url):
             else:          #:标点符号非常非常容易忘记加，尤其是中间插入if else 语句时！！！ 
                src = 'http://news.swjtu.edu.cn'+src
     
-            print src,threading.currentThread().getName()
-            debug_log(src)        
+            #src = unicode(src,'utf8')   
+    
+            #print type(src).__name__
             
-            download(src) #使用函数之前需事先定义函数
+            list_src.append(src)    
+    
+def src(src):
+    
+   # print type(src).__name__
+    
+    print src,threading.currentThread().getName()
+    
+    debug_log(src)        
+            
+    download(src) #使用函数之前需事先定义函数
 
 
 def worker():
@@ -162,52 +178,109 @@ def worker():
 
 
 def main():
-    num_worker_threads = 70
         
     for i in range(num_worker_threads):
          t = threading.Thread(target=worker)
          t.daemon = True
          t.start()
     
-    urls = [u'http://news.swjtu.edu.cn/ShowNews-{}-0-1.shtml'.format(number) for number in range(8000,8100)]
+    urls = [u'http://news.swjtu.edu.cn/ShowNews-{}-0-1.shtml'.format(number) for number in range(8000,8100)]  #(8000,8100）
        
     for item in urls:
         q.put(item)
     
     q.join()       # block until all tasks are done
 
-if __name__ == "__main__":
-	a = time.time()
-	main()
-	b = time.time()
-	print b-a	
- 
-        '''
-        五线程 24.6069998741
-        十线程 26.9849998951
-        15线程 22.2999999523
-        20线程 22.8299999237
-        25线程 16.5989999771
-        30线程 15.8029999733
-        40线程 15.3019998074
-        45线程 16.5540001392
-        50线程 21.5690000057
-        60线程 15.9329998493
-        70线程 14.6989998817
-        80线程 15.4750001431
-        100线程 15.1760001183
-        200线程 22.5420000553
-        400线程 22.1840000153
-        单线程 89.3729999065
+'''
+         t = threading.Thread(target=worker)
+         t.daemon = True
+         t.start()
+         
+         t_src = threading.Thread(target=worker_src)
+         t_src.daemon = True
+         t_src.start()
 
-        实验时网络不稳定，对速度影响很大 
-        仅仅对100个网页进行实验
+         item = q.get()
+         do_work(item)
+         q.task_done()
+         
+         item = q_src.get()
+         src(item)
+         q_src.task_done()
+                  
+         以上绝对不能重复使用两次类似于：q.get()，下载图片时需另取一个变量名，如：q_src.get()
+         否则运行时报错：
+         encoding error : input conversion failed due to input error, bytes 0x98 0x99 0x9A 0xA2
+
+         
+
+'''
+
+
+def worker_src():
+    while True:
+        item = q_src.get()
+        src(item)
+        q_src.task_done()
+    
+def main_src():    
         
-        '''
+    for i in range(num_worker_threads):
+         t_src = threading.Thread(target=worker_src)
+         t_src.daemon = True
+         t_src.start()
+           
+    for item in list_src:
+        q_src.put(item)
+    
+    q_src.join()       # block until all tasks are done
+    
+    
 
-        '''
-        缺陷：
-             每个线程下载的图片数量相差较大，网页多线程，也应使用多线程下载同一个网页的图片，进一步优化下载速度
-             日志保存格式为GB2312，想保存为UTF-8，还需要进一步改进
-             代理还未涉及
-        '''
+if __name__ == "__main__":
+    a = time.time()
+    main()
+    b = time.time()    
+    main_src()
+    c = time.time()
+    print b-a	
+    print c-b
+    print c-a
+ 
+'''
+                    五线程 24.6069998741
+                    十线程 26.9849998951
+                    15线程 22.2999999523
+                    20线程 22.8299999237
+                    25线程 16.5989999771
+                    30线程 15.8029999733
+                    40线程 15.3019998074
+                    45线程 16.5540001392
+                    50线程 21.5690000057
+                    60线程 15.9329998493
+                    70线程 14.6989998817
+                    80线程 15.4750001431
+                    100线程 15.1760001183
+                    200线程 22.5420000553
+                    400线程 22.1840000153
+                    单线程 89.3729999065
+            
+                    实验时网络不稳定，对速度影响很大 
+                    仅仅对100个网页（8000，8100）进行实验
+                    
+                    先读取所有图片网址，再用多线程下载图片
+                    缺陷：
+                        非常非常慢，比单线程还要慢慢慢
+                    40线程 104.306999922
+                           b-a 46.1470000744
+                           c-b 58.1599998474
+                           c-a 104.306999922
+                    
+                    '''
+            
+'''
+                    缺陷：
+                         每个线程下载的图片数量相差较大，网页多线程，也应使用多线程下载同一个网页的图片，进一步优化下载速度
+                         日志保存格式为GB2312，想保存为UTF-8，还需要进一步改进
+                         代理还未涉及
+                    '''
